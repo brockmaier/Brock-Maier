@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Palette Picker</title>
+    <style>
+        /* ---------------------------------------------------- */
+        /* CSS STYLES (Creative Styling) */
+        /* ---------------------------------------------------- */
+        :root {
+            --pixel-size: 20px;
+            --canvas-width: 10;
+            --canvas-height: 10;
+        }
+
+        body {
+            font-family: 'Courier New', monospace; /* Pixel/Code aesthetic */
+            background-color: #1e1e1e; /* Dark background */
+            color: #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            margin: 0;
+        }
+
+        h1 {
+            color: #aaffaa; /* Neon green accent */
+            text-shadow: 0 0 10px rgba(170, 255, 170, 0.5);
+            margin-bottom: 5px;
+        }
+
+        .container {
+            display: flex;
+            gap: 40px;
+            margin-top: 20px;
+            padding: 30px;
+            background-color: #2b2b2b;
+            border: 2px solid #555;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+
+        /* --- Palette Section Styles --- */
+        .palette-controls {
+            flex-shrink: 0;
+            width: 250px;
+        }
+
+        #palette-display {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #444;
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        .color-swatch {
+            height: 30px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            padding-left: 10px;
+            cursor: pointer; /* Indicates it's selectable */
+            transition: transform 0.1s;
+        }
+
+        .color-swatch:hover {
+            transform: scale(1.02);
+            box-shadow: 0 0 8px rgba(255, 255, 255, 0.2);
+        }
+        
+        /* Selected Swatch Style */
+        .color-swatch.selected {
+            border: 3px solid white;
+            box-shadow: 0 0 15px #aaffaa;
+        }
+
+        button {
+            background-color: #aaffaa;
+            color: #1e1e1e;
+            border: none;
+            padding: 10px 15px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            border-radius: 4px;
+            transition: background-color 0.2s, transform 0.1s;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background-color: #88ee88;
+            transform: translateY(-1px);
+        }
+
+        /* --- Canvas Section Styles --- */
+        .canvas-container {
+            background-color: #383838;
+            border: 4px solid #aaffaa; /* Neon green border */
+            border-radius: 4px;
+            display: grid;
+            /* Create a grid based on JS variables */
+            grid-template-columns: repeat(var(--canvas-width), var(--pixel-size));
+            grid-template-rows: repeat(var(--canvas-height), var(--pixel-size));
+        }
+
+        .pixel {
+            width: var(--pixel-size);
+            height: var(--pixel-size);
+            background-color: #1e1e1e; /* Default background */
+            border: 1px solid #444; /* Grid lines */
+            box-sizing: border-box;
+            cursor: crosshair;
+        }
+        
+        .footer-nav {
+            margin-top: 20px;
+            font-size: 0.9em;
+        }
+        .footer-nav a {
+            color: #aaffaa;
+            text-decoration: none;
+        }
+        .footer-nav a:hover {
+            text-decoration: underline;
+        }
+
+    </style>
+</head>
+<body>
+
+    <a id="top"></a>
+    <h1>Pixel Palette Picker 🎨</h1>
+    <p>Generate a cohesive 5-color palette, select a color, and draw on the canvas!</p>
+
+    <div class="container">
+        <div class="palette-controls">
+            <h2>Current Palette</h2>
+            <div id="palette-display">
+                </div>
+            
+            <button id="generate-palette-btn">Generate New Palette</button>
+            <button id="clear-canvas-btn">Clear Canvas</button>
+        </div>
+
+        <div id="pixel-canvas" class="canvas-container">
+            </div>
+    </div>
+
+    <div class="footer-nav">
+        <a href="college_football.html">⬅️ Back to College Football Page</a>
+    </div>
+
+    <script>
+        /* ---------------------------------------------------- */
+        /* JAVASCRIPT LOGIC (Creative Functionality) */
+        /* ---------------------------------------------------- */
+        
+        const paletteDisplay = document.getElementById('palette-display');
+        const generateBtn = document.getElementById('generate-palette-btn');
+        const clearBtn = document.getElementById('clear-canvas-btn');
+        const pixelCanvas = document.getElementById('pixel-canvas');
+        
+        let currentPalette = [];
+        let selectedColor = '#1e1e1e'; // Default to background color
+        let isDrawing = false;
+
+        // --- Color Generation Logic ---
+        
+        /**
+         * Generates a random dark primary color in HSL format.
+         */
+        function getRandomPrimaryColor() {
+            const h = Math.floor(Math.random() * 360); // 0-359
+            const s = Math.floor(Math.random() * 30) + 70; // 70-100 (high saturation)
+            const l = Math.floor(Math.random() * 20) + 30; // 30-50 (medium dark lightness)
+            return { h, s, l };
+        }
+
+        /**
+         * Converts HSL color object to a CSS HSL string.
+         * @param {{h: number, s: number, l: number}} hsl - HSL color object.
+         * @returns {string} CSS HSL string.
+         */
+        function hslToString({ h, s, l }) {
+            return `hsl(${h}, ${s}%, ${l}%)`;
+        }
+
+        /**
+         * Generates an aesthetically pleasing 5-color palette based on a starting color.
+         * This is the 'creative contribution' in function.
+         */
+        function generatePalette() {
+            const primary = getRandomPrimaryColor();
+            const p_h = primary.h;
+            
+            // Generate complementary and split-complementary colors
+            const h2 = (p_h + 180) % 360; // Complementary
+            const h3 = (p_h + 150) % 360; // Triadic 1
+            const h4 = (p_h + 210) % 360; // Triadic 2
+            
+            // Generate a near-monochromatic accent (lighter or darker shade)
+            const accent = { 
+                h: p_h, 
+                s: primary.s, 
+                l: (primary.l + 30) % 100 // Lighter accent
+            };
+
+            currentPalette = [
+                // 1. Primary
+                hslToString(primary),
+                // 2. Complementary Contrast
+                hslToString({ h: h2, s: 70, l: 60 }),
+                // 3. Triad 1
+                hslToString({ h: h3, s: 80, l: 45 }),
+                // 4. Triad 2
+                hslToString({ h: h4, s: 80, l: 45 }),
+                // 5. Light/Dark Accent
+                hslToString(accent)
+            ];
+            
+            renderPalette();
+        }
+
+        /**
+         * Renders the current palette array into the HTML display.
+         */
+        function renderPalette() {
+            paletteDisplay.innerHTML = ''; // Clear existing swatches
+            currentPalette.forEach(color => {
+                const swatch = document.createElement('div');
+                swatch.className = 'color-swatch';
+                swatch.style.backgroundColor = color;
+                swatch.style.color = getContrastColor(color);
+                swatch.textContent = color;
+                swatch.dataset.color = color;
+                
+                swatch.addEventListener('click', () => selectColor(color, swatch));
+                
+                paletteDisplay.appendChild(swatch);
+            });
+            // Auto-select the first color
+            selectColor(currentPalette[0], paletteDisplay.firstChild);
+        }
+
+        /**
+         * Sets the currently selected drawing color.
+         */
+        function selectColor(color, swatchElement) {
+            selectedColor = color;
+            // Remove 'selected' class from all swatches
+            document.querySelectorAll('.color-swatch').forEach(s => {
+                s.classList.remove('selected');
+            });
+            // Add 'selected' class to the clicked swatch
+            if (swatchElement) {
+                swatchElement.classList.add('selected');
+            }
+        }
+        
+        /**
+         * Simple function to determine if white or black text is better for contrast.
+         * (Approximation using Lightness value from HSL string)
+         */
+        function getContrastColor(hsl) {
+            const lMatch = hsl.match(/, (\d+)%\)/);
+            if (lMatch) {
+                const lightness = parseInt(lMatch[1]);
+                return lightness > 60 ? '#1e1e1e' : '#ffffff'; // Darker text for light colors, lighter text for dark
+            }
+            return '#ffffff';
+        }
+
+
+        // --- Canvas Drawing Logic ---
+        
+        /**
+         * Initializes the pixel art grid.
+         */
+        function initCanvas() {
+            const width = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--canvas-width'));
+            const height = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--canvas-height'));
+
+            for (let i = 0; i < width * height; i++) {
+                const pixel = document.createElement('div');
+                pixel.className = 'pixel';
+                pixelCanvas.appendChild(pixel);
+            }
+            
+            // Add drawing event listeners
+            pixelCanvas.addEventListener('mousedown', startDrawing);
+            pixelCanvas.addEventListener('mouseup', stopDrawing);
+            pixelCanvas.addEventListener('mouseleave', stopDrawing);
+            pixelCanvas.addEventListener('mouseover', draw);
+        }
+
+        function startDrawing(e) {
+            if (e.target.classList.contains('pixel')) {
+                isDrawing = true;
+                e.target.style.backgroundColor = selectedColor;
+                e.preventDefault(); // Prevent text selection/drag on mouse move
+            }
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+        }
+
+        function draw(e) {
+            if (isDrawing && e.target.classList.contains('pixel')) {
+                // Only draw if the primary mouse button (0) is pressed
+                if (e.buttons === 1) { 
+                    e.target.style.backgroundColor = selectedColor;
+                }
+            }
+        }
+        
+        /**
+         * Clears all pixels to the default background color.
+         */
+        function clearCanvas() {
+            document.querySelectorAll('.pixel').forEach(pixel => {
+                pixel.style.backgroundColor = '#1e1e1e'; // Background color
+            });
+        }
+
+
+        // --- Initialization ---
+        
+        generateBtn.addEventListener('click', generatePalette);
+        clearBtn.addEventListener('click', clearCanvas);
+        
+        // Initial setup
+        initCanvas();
+        generatePalette();
+
+    </script>
+</body>
+</html>
